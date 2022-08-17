@@ -40,24 +40,24 @@ We then filtered the Tweets to English only and excluded any retweets or posts f
 
 After filtering, our initial dataset has 9282 Tweets from these 9 companies. The image below shows an example of the raw data scraped. 
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/sample_tweets.png' alt='images/sample_tweets.png'></p>
 
 Here you can see that we collected the Tweets from the 9 companies, with the corresponding company and timestamp. 
 
 ### Labeling and Cleaning
 We choose to label our data manually instead of using a pre-labeled dataset so we can have the flexibility of having multiple labels. For example, a Tweet can be both anger and surprise. Our custom labels allow us to capture such complex emotions, which is essential for our project. In our labeling tool, we have the option of labeling yes or no to each of the following emotions: disgust, joy, anger, surprise, sadness, fear, and neutral. This gives a possibility of 128 possible combinations of unique labels, although, in practice, there are much fewer unique labels (for example we did not find Tweets that were both joyful and sad). Regardless, we choose this method of labeling to have extra flexibility.  With just under 10,000 Tweets in our dataset, labeling row by row would be time-consuming and ineffective. First, we split the task by company. Each team member would label 3 of the 9 companies. Next, we used pysentimento’s pre-trained classifier to add an initial sentiment. 
 
-Finally, inspired by the MyVoice data challenge that one of our teammates participated in, we decided to build a tool that would cluster the Tweet sentiment using the pre-trained  BERT network. This tool allows us to label our dataset in clusters/batches instead of row by row. The tool works by first splitting the dataset based on pysentimento. Then the tool will use the bert network to split into the initial clusters. For each of the initial clusters, the labeler (one of our team members) will be able to choose whether or not to split. For example, we can split a neutral cluster into 10 sub-clusters and label each of them, and we may choose not to split the surprised initial cluster because it is already aligned with the labels we want. This structure allows us to fine-tune each label where necessary. Note that we are only keeping the labels from this tool and we are not using the initial pysentimento labels after. 
+Finally, inspired by the [MyVoice data challenge](https://midas.umich.edu/myvoice-data-challenge/) that one of our teammates participated in, we decided to build a tool that would cluster the Tweet sentiment using the pre-trained  BERT network. This tool allows us to label our dataset in clusters/batches instead of row by row. The tool works by first splitting the dataset based on pysentimento. Then the tool will use the bert network to split into the initial clusters. For each of the initial clusters, the labeler (one of our team members) will be able to choose whether or not to split. For example, we can split a neutral cluster into 10 sub-clusters and label each of them, and we may choose not to split the surprised initial cluster because it is already aligned with the labels we want. This structure allows us to fine-tune each label where necessary. Note that we are only keeping the labels from this tool and we are not using the initial pysentimento labels after. 
 
 The table below shows the labels created by our team members. 
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/emotion_labels.png' alt='images/emotion_labels.png'></p>
 
 As you can see, there is a severe class imbalance. The neutral class is significantly more prevalent in this dataset, and the fear class is significantly less prevalent. Although we did try to address this class imbalance, there was no performance advantage in doing so. We go more into detail about the class imbalance in the modeling section of this blog. 
 
 Once we had all of our custom labels, we started cleaning the data. The first step is to combine all of the CSV files from each of our teammates into one dataframe. Next, we had to do text preprocessing using the NLTK library, which includes lowercasing, lemmatization, removal of stop words, removal of punctuation, removal of companies, and removal of links. For example, this process would turn “delivered”, “DELIVERY”, “deliveries”, and “delivers” into “deliver”. It would also remove words that appear too often, like “the”, “is” and “it”, as well as words about the company like “DoorDash” and “uber”.  This step allows the text to be consistent and removes unnecessary items, making the dataset smaller for the next steps. The image below shows what our cleaned and labeled dataset looks like.
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/tokenization.png' alt='images/tokenization.png'></p>
 
 After data cleaning, we began vectorizing the data for the classification model training and tuning. 
 
@@ -72,6 +72,7 @@ We then proceed to fit our curated train dataset into a suite of classification 
 
 The following table summarizes the best result achieved for each classification algorithm in terms of macro-average F1 score/AUC, using both BOW and word embedding methods. For each classification algorithm, we perform hyperparameter tuning by performing a grid search on both the vectorizer and the estimator’s parameters.
 
+<p align="center"><img src='images/classification_res.png' alt='images/classification_res.png'></p>
 
 MLP performed the best in terms of both macro F1 and AUC score. We note that for multi-label tasks, the accuracy can appear rather low. This is primarily due to our dataset being highly imbalanced, with certain emotions such as surprise not appearing as often as emotions such as neutral. While some algorithms allow adjusting for class imbalance, we find that sklearn algorithms are not efficient at addressing this issue. 
 
@@ -81,7 +82,7 @@ For most classification algorithms, the bag-of-words approach outperforms the wo
 The input of bert consists of three parts: word vectors, segment vectors, and position vectors. Word vectors are each independent word, which is the most basic component of an article, while segment vectors are used to segment sentences. The end of a sentence usually includes `[SEP]`, and the beginning usually includes `[CLS]`. The position vectors indicate the location of a word and are used because the transformer architecture cannot remember the order of word vectors like with RNN-type models (Clark et al., 2019).
 To create the appropriate input for bert, we need to convert all the raw text inputs into tokens for the analysis. Once we have the appropriate input, we can begin to fine-tune the architecture of the bert model. To do this, we referenced the contents of hugging face, Sun et al. (2019),  and other code and modified them for our project. We’ve set the epoch to 5 and used ROC AUC as the comparison metric. We tried several different sets of bert pre-train classification models and compared their performance. The following table contains the results of seven models trained on five epochs. The highest AUC scores are shown in the table below.
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/bert_results.png' alt='images/bert_results.png'></p>
 
 As you can see, we tried a total of 7 sets of models as the basis for our analysis, and we found that the larger models did not perform better in our task. This may be caused by:
 - The imbalance in our data classes: we have a large neutrality class (almost half) and a small percentage of data on the remaining emotions, and
@@ -93,7 +94,7 @@ Despite these obstacles, the Microsoft bert model still performed better than al
 ### Topic Modeling 
 Starting from the TF-IDF vectorized dataset, we tried several topic modeling algorithms with our dataset, including Latent Dirichlet allocation (LDA), Latent Semantic Indexing (LSI), and Non-negative Matrix Factorization (NMF). We found that NMF produced the most interpretable results (although this may be subjective), so we are choosing it for our dashboard. The image below shows the output of the NMF algorithm on our Twitter dataset
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/topic_terms.png' alt='images/topic_terms.png'></p>
 
 Here we show the top 10 words in each of our 10 topics. We can see that topic 0 is more about ordering, while topic 5 is more about account issues. Some topics might be harder to interpret, like topic 2; it might just be an outlier. Regardless, we believe that this would be informative in showing what is trending. 
 
@@ -108,7 +109,7 @@ Our pipeline is designed to handle the end-to-end process of monitoring sentimen
 
 The diagram below shows an overview architecture of the pipeline end-to-end:
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/pipeline_architecture.png' alt='images/pipeline_architecture.png'></p>
 
 It is important to note that this proposed architecture is not the only way to implement the pipeline end-to-end. GCP is powerful in the sense that it provides a wide breadth of tools that could serve the same use cases in different ways. As we will discuss further in subsequent sections, the choice of tools can greatly impact not only the design but also in terms of efficiency as well as the cost incurred to keep the pipeline running.
 
@@ -127,7 +128,7 @@ The last step of the data extraction process is to choose a service to store the
 
 Having decided on using BigQuery as the destination, we can then return to Dataflow, and use one of GCP’s existing templates - 
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/gcp_dataflow.png' alt='images/gcp_dataflow.png'></p>
 
 In the template, we specify which topic the streaming should start from (“Twitter”), as well as the destination BigQuery table (“Tweets”).  
 
@@ -137,7 +138,7 @@ To summarize, the data extraction process starts with retrieving Tweets from Twi
 
 Below is an example of the destination BigQuery table:
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/gcp_bq_tweets.png' alt='images/gcp_bq_tweets.png'></p>
 
 The same workflow can be set up for topic modeling, with the only difference being that our data source is the Tweets table that we have created. Instead of making API calls to Twitter, our topic modeling cloud function queries the text from the Tweets table, applies any topic modeling algorithms (e.g. Non-Negative Matrix Factorization), and sends the topic modeling results back into a BigQuery table, using the same Cloud Pub/Sub and Dataflow workflow. 
 
@@ -151,29 +152,23 @@ As our free trial account does not come with any GPU access, our team chose to f
 - Once the preprocessing and training code is set up, we can use the Jupyter notebook instance to load the train data from the Cloud Storage Bucket in step 1, and submit a training job to GCP. This triggers Vertex AI to start the model training process. 
 - The trained model (.joblib or .pkl) file, once created successfully, will be available at the provided storage bucket path specified. Users can also opt to monitor the process and/or debug errors through the Logging service. 
 
-
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
-
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
-
+<p align="center"><img src='images/gcp_ml_job_request.png' alt='images/gcp_ml_job_request.png'></p>
+<p align="center"><img src='images/gcp_logs.png' alt='images/gcp_logs.png'></p>
 
 The process to deploy a trained model is straightforward if the model uses any of Google’s supported pre-built container templates. For deep learning, however, only Tensorflow is supported. As a result, our locally trained BERT model, which was Pytorch-based, had to be converted to an ONIX file. From there, the model weights can be saved into Tensorflow’s .pb file, and deployed onto Vertex AI.
 The last step is to request a batch prediction. On Vertex AI, this is done by creating a batch prediction request, which takes any of the deployed models, the BigQuery table containing the source data, and outputs a second BigQuery table with the prediction results. 
 
 #### Social Monitoring Dashboard With Google Data Studio
-Once both the sentiment classification and topic modeling results are ready, we can develop a dashboard to demonstrate the result. In reality, this would be a dashboard that marketing or public relation teams can refer to at any given time to monitor customer sentiments. The dashboard can be accessed here. **insert link**
+Once both the sentiment classification and topic modeling results are ready, we can develop a dashboard to demonstrate the result. In reality, this would be a dashboard that marketing or public relation teams can refer to at any given time to monitor customer sentiments. The dashboard can be accessed [here](https://datastudio.google.com/reporting/c8b5e9f2-4760-4417-a958-e069552b9f69).
 
 One great advantage of GCP is that it allows users to create a Google Data Studio dashboard from any BigQuery table in a few clicks. All users need to do is to go to the BigQuery table, and choose the option to “Explore with Data Studio”.
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/explore_data_studio.png' alt='images/explore_data_studio.png'></p>
 
-A dashboard is an ultimate endpoint for users for both technical and business audiences to get a view of what the entire social monitoring pipeline may look like. As a technical user, the dashboard allows him/her to drill down into the prediction results, and get a sense of the quality of both the sentiment classifier as well as the topic modeling. On the other hand, a business user can use the dashboard to gain insights right away into, including but not limited to, the volume of tweets daily, the sentiments of these tweets, and the dominant sentiment(s), as well as the top terms in each corresponding topic.
+A dashboard is an ultimate endpoint for users for both technical and business audiences to get a view of what the entire social monitoring pipeline may look like. As a technical user, the dashboard allows him/her to drill down into the prediction results, and get a sense of the quality of both the sentiment classifier as well as the topic modeling. On the other hand, a business user can use the dashboard to gain insights right away into, including but not limited to, the volume of tweets daily, the sentiments of these tweets, and the dominant sentiment(s), as well as the top terms in each corresponding topic. The following illustrations show the sentiment analysis and topic modelling views of the dashboard:
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
-
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
-
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/dashboard_sents.png' alt='images/dashboard_sents.png'></p>
+<p align="center"><img src='images/dashboard_topics.png' alt='images/dashboard_topics.png'></p>
 
 ### Challenges & Limitations
 Our GCP account is set up on the premise of being a free trial account. We were granted a total of 400$ worth of Google Cloud Platform credits; however, the free trial access did not come with access to any GPU. As such, the entire process of fine-tuning the BERT model had to take place in Colab instead.
@@ -182,7 +177,7 @@ We also note that there are some constraints on the Vertex AI platform in terms 
 
 The second and arguably more important learning point during our implementation is the cost associated with our design. We discovered that GCP consumed all the provided free credits in about 3 weeks from then the Dataflow streaming service was set up. We validated this by checking our billing history, which indicates a significant expense under the Dataflow service. 
 
-<p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
+<p align="center"><img src='images/gcp_billing.png' alt='images/gcp_billing.png'></p>
 
 While this does not pose a material blocker to our project, it does provide an invaluable lesson in terms of Data Engineering and Machine Learning Operations. In reality, a pipeline design must factor in more than just functionality -- we must also consider the efficiency, and even the commercial aspects of each of our services. Dataflow is a real-time streaming service, which, for use cases where the prediction results can be batched, may not be the optimal choice. 
 
@@ -196,7 +191,7 @@ Next, we developed a custom labeling tool to tag the content so we have more con
 Then, we did pre-processing, which included lowercasing, removal of stop words, and lemmatization. Once the text is pre-processed, we use tf-idf and bert to vectorize the text, essentially turning the text into numerical values. 
 From the vectorized model, we tried different machine learning algorithms to build a classification model with BERT being the best model. We also used unsupervised learning to analyze the content of Tweets. We did this by trying multiple topic modeling algorithms such as LDA and LSI but we found NMF to be the best topic model. The BERT model and NMF will be the model we use for the final steps. 
 
-Once we have the final models, we use GCP to build a dashboard to not only present our analysis results but also build a data processing pipeline as a tool to automate the operation afterward. This includes scheduled Twitter scraping, text preprocessing,   and applying our final models to generate predictions. The dashboard shows an overview of the project, the current sentiment results from the classifier, and the top topics from our topic modeling algorithm.
+Once we have the final models, we use GCP to build a dashboard to not only present our analysis results but also build a data processing pipeline as a tool to automate the operation afterward. This includes scheduled Twitter scraping, text preprocessing, and applying our final models to generate predictions. The dashboard shows an overview of the project, the current sentiment results from the classifier, and the top topics from our topic modeling algorithm.
 
 # 5. Conclusion & Next Steps
 We used multiple classifications and topic modeling methods to evaluate the best approach to extract sentiments and topics from customer Tweet data. The dashboard is a demonstration of both supervised and unsupervised ML capabilities that is insightful and intuitive for users with or without a technical background. We believe that this tool could help food delivery companies manage their brands on social media channels in a significantly more efficient manner, and has the potential to transform into a full-fledged social monitoring tool that can be scaled to other social media channels, thus outperforming traditional methods such as focus groups or user surveys.
@@ -206,7 +201,7 @@ With more time and resources, we would be able to expand our project to other do
 In addition, if the computational resources are sufficient, we would like to try to use more complex models for classification tasks, such as GPT-3, not-4chan, elmo, etc. as tools for analysis, so that our models can better understand users' Tweeting sentiments. The GCP architecture can be extended into a fully functional Machine Learning Application that can support these models (through Enterprise Tensorflow and support for GPUs/TPUs). It can also be extended to go beyond an end-user dashboard, but integrated into a real-time prediction framework (via Vertex AI’s real-time predictions), or to other NLP tasks. Google Cloud’s NLP AI, for instance, can widen the scope of our project to multi-language tasks, or more advanced NLP tasks such as abstract-based sentiment analysis, syntax analysis, and so on.
 
 # 6. Statement Of Work
-Our project workload is evenly divided among team members, with each member focusing on
+Our project workload is evenly divided among team members, with each member focusing on:
 - Jason: scripts to scrape and label data, data labeling, sklearn classification models, topic modeling models, Github repo, video editing, and project blog.
 - Mel: data labeling, sklearn classification models, GCP pipeline development, Data Studio dashboard, Github repo, project video, and blog.
 - Chihshen Hsu: data labeling, fine-tuning BERT model, Github repo, and project blog.
