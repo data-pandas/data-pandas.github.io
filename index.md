@@ -9,6 +9,8 @@ August 17, 2022
 <dd><a href='https://github.com/data-pandas/mads-cap-social-monitoring'>https://github.com/data-pandas/mads-cap-social-monitoring</a></dd>
 <dt>Dashboard</dt>
 <dd><a href='https://datastudio.google.com/reporting/c8b5e9f2-4760-4417-a958-e069552b9f69'>https://datastudio.google.com/reporting/c8b5e9f2-4760-4417-a958-e069552b9f69</a></dd>
+<dt>Video Walkthrough of Dashboard</dt>
+<dd><a href='https://youtu.be/DUZgPvu9iAY'>https://youtu.be/DUZgPvu9iAY</a></dd>
 </dl>
 
 # 1. Introduction
